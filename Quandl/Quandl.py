@@ -12,6 +12,7 @@ import pandas as pd
 import re
 from dateutil import parser
 from numpy import genfromtxt
+import sys
 
 try:
     from urllib.error import HTTPError  # Python 3
@@ -23,12 +24,12 @@ except ImportError:
     from urllib2 import HTTPError, Request, urlopen
     strings = unicode
 
-
-
 #Base API call URL
-QUANDL_API_URL = 'https://www.quandl.com/api/v1/'
-VERSION = '2.8.7'
+QUANDL_API_URL_QUERY = 'https://www.quandl.com/api/v1/'
+VERSION_QUERY = '2.8.7'
 
+QUANDL_API_URL = 'https://www.quandl.com/api/v3/'
+VERSION = '2.8.7'
 
 def get(dataset, **kwargs):
     """Return dataframe of requested dataset from Quandl.
@@ -68,9 +69,12 @@ def get(dataset, **kwargs):
             dataset_columns = dataset_temp[1]
             kwargs.update({'column':dataset_columns})
 
-
-        url = QUANDL_API_URL + 'datasets/{}.csv?'.format(dataset)
-
+        if 'metadata' in kwargs.keys() and kwargs['metadata']:
+            url = QUANDL_API_URL + 'datasets/{}/metadata.csv?'.format(dataset)
+            del kwargs['metadata']
+        else:
+            url = QUANDL_API_URL + 'datasets/{}.csv?'.format(dataset)
+            
     #Array
     elif type(dataset) == list:
         multiple_dataset_dataframe = pd.DataFrame()
@@ -110,6 +114,7 @@ def get(dataset, **kwargs):
                                trim_start=trim_start,
                                trim_end=trim_end,
                                **kwargs)
+
     if returns == 'url':
         return url      # for test purpose
     try:
@@ -216,7 +221,7 @@ def push(data, code, name, authtoken='', desc='', override=False, verbose=False,
     return rtn
 
 
-def search(query, source=None, page=1, authtoken=None, verbose=True, prints=None):
+def search(query,source=None,page=1,authtoken=None,verbose=True,prints=None):
     """Return array of dictionaries of search results.
     :param str query: (required), query to search with
     :param str source: (optional), source to search
@@ -229,7 +234,7 @@ def search(query, source=None, page=1, authtoken=None, verbose=True, prints=None
         print('Deprecated: "prints" is depreciated and will be removed in next release, use "verbose" instead.')
         verbose = prints
     token = _getauthtoken(authtoken, verbose)
-    search_url = QUANDL_API_URL + '/datasets.json?request_source=python&request_version=' + VERSION + '&query='
+    search_url = QUANDL_API_URL_QUERY + '/datasets.json?request_source=python&request_version=' + VERSION_QUERY + '&query='
     #parse query for proper API submission
     parsedquery = re.sub(" ", "+", query)
     parsedquery = re.sub("&", "+", parsedquery)
@@ -242,6 +247,7 @@ def search(query, source=None, page=1, authtoken=None, verbose=True, prints=None
         url += '&source_code=' + source
     #Page to be searched
     url += '&page=' + str(page)
+
     text= urlopen(url).read().decode("utf-8")
     data = json.loads(text)
     try:
@@ -257,14 +263,15 @@ def search(query, source=None, page=1, authtoken=None, verbose=True, prints=None
         temp_dict['freq'] = datasets[i]['frequency']
         temp_dict['colname'] = datasets[i]['column_names']
         datalist.append(temp_dict)
-        if verbose and i < 4:
+        if verbose and i < 0:
             print('{0:20}       :        {1:50}'.format('Name',temp_dict['name']))
             print('{0:20}       :        {1:50}'.format('Quandl Code',temp_dict['code']))
             print('{0:20}       :        {1:50}'.format('Description',temp_dict['desc']))
             print('{0:20}       :        {1:50}'.format('Frequency',temp_dict['freq']))
             print('{0:20}       :        {1:50}'.format('Column Names',str(temp_dict['colname'])))
             print('\n\n')
-    return datalist
+    #return datalist
+    return datasets
 
 
 # format date, if None returns None
@@ -315,7 +322,6 @@ def _getauthtoken(token,text):
             pickle.dump(token, open('authtoken.p', 'wb'))
             if text == "no" or text == False:
                 pass
-
             else:
                 print("Token {} activated and saved for later use.".format(token))
         except Exception as e:

@@ -323,7 +323,8 @@ def _getauthtoken(token,text):
             if text == "no" or text == False:
                 pass
             else:
-                print("Token {} activated and saved for later use.".format(token))
+                #print("Token {} activated and saved for later use.".format(token))
+                print("Quandl token activated and saved for later use.\n")
         except Exception as e:
             print("Error writing token to cache: {}".format(str(e)))
 
